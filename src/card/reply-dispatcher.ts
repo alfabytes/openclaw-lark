@@ -239,6 +239,10 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
           if (controller.isTerminated) return;
 
           if (controller.cardMessageId) {
+            if (payload.isReasoning === true) {
+              await controller.onReasoningStream({ ...payload, text: controllerText });
+              return;
+            }
             await controller.onDeliver({ ...payload, text: controllerText });
             return;
           }
