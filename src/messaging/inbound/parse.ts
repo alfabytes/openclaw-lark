@@ -25,6 +25,10 @@ import { createFetchSubMessages, createParseResolveNames, fetchCardContent } fro
 
 const log = larkLogger('inbound/parse');
 
+function resolveSenderId(senderId: { open_id?: string; user_id?: string; union_id?: string } | undefined): string {
+  return senderId?.open_id || senderId?.user_id || senderId?.union_id || '';
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -128,7 +132,7 @@ export async function parseMessageEvent(
   return {
     chatId: event.message.chat_id,
     messageId: event.message.message_id,
-    senderId: event.sender.sender_id.open_id || '',
+    senderId: resolveSenderId(event.sender.sender_id),
     chatType: event.message.chat_type,
     rootId: event.message.root_id || undefined,
     parentId: event.message.parent_id || undefined,

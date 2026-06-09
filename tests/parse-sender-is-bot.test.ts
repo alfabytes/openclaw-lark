@@ -17,6 +17,22 @@ function baseEvent(overrides: Partial<{ sender_type: string }> = {}) {
   };
 }
 
+function eventWithSenderId(senderId: { open_id?: string; user_id?: string; union_id?: string }) {
+  return {
+    sender: {
+      sender_id: senderId,
+      sender_type: 'user',
+    },
+    message: {
+      message_id: 'msg_1',
+      chat_id: 'oc_test',
+      chat_type: 'p2p' as const,
+      message_type: 'text',
+      content: JSON.stringify({ text: 'hi' }),
+    },
+  };
+}
+
 describe('parseMessageEvent senderIsBot', () => {
   it('returns true when sender_type === "bot" (Feishu canonical value)', async () => {
     const ctx = await parseMessageEvent(baseEvent({ sender_type: 'bot' }));
@@ -36,5 +52,22 @@ describe('parseMessageEvent senderIsBot', () => {
   it('returns false when sender_type is missing', async () => {
     const ctx = await parseMessageEvent(baseEvent());
     expect(ctx.senderIsBot).toBe(false);
+  });
+});
+
+describe('parseMessageEvent senderId fallback', () => {
+  it('uses open_id when present', async () => {
+    const ctx = await parseMessageEvent(eventWithSenderId({ open_id: 'ou_sender', user_id: 'user_sender' }));
+    expect(ctx.senderId).toBe('ou_sender');
+  });
+
+  it('falls back to user_id when open_id is missing', async () => {
+    const ctx = await parseMessageEvent(eventWithSenderId({ user_id: 'user_sender' }));
+    expect(ctx.senderId).toBe('user_sender');
+  });
+
+  it('falls back to union_id when open_id and user_id are missing', async () => {
+    const ctx = await parseMessageEvent(eventWithSenderId({ union_id: 'on_sender' }));
+    expect(ctx.senderId).toBe('on_sender');
   });
 });
