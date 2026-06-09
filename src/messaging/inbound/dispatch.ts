@@ -496,6 +496,17 @@ export async function dispatchToAgent(params: {
   if (i18nCommandName) {
     dc.log(`feishu[${dc.account.accountId}]: ${i18nCommandName} command detected, using i18n dispatch`);
     log.info(`${i18nCommandName} command detected, using i18n dispatch`);
+    if (isAuthCommand && dc.commandAuthorized === false) {
+      await sendMessageFeishu({
+        cfg: dc.accountScopedCfg,
+        to: dc.ctx.chatId,
+        text: 'You are not authorized to run /feishu auth in this conversation.',
+        replyToMessageId: params.replyToMessageId ?? dc.ctx.messageId,
+        accountId: dc.account.accountId,
+        replyInThread: dc.isThread,
+      });
+      return;
+    }
     try {
       let i18nTexts: Record<string, string>;
       if (isDoctorCommand) {

@@ -11,6 +11,10 @@ const {
   clearToolUseTraceRunMock,
   createFeishuReplyDispatcherMock,
   dispatchReplyFromConfigMock,
+  runFeishuAuthI18nMock,
+  buildI18nMarkdownCardMock,
+  sendCardFeishuMock,
+  sendMessageFeishuMock,
 } = vi.hoisted(() => ({
   buildDispatchContextMock: vi.fn(),
   buildMessageBodyMock: vi.fn(() => 'message-body'),
@@ -22,6 +26,10 @@ const {
   clearToolUseTraceRunMock: vi.fn(),
   createFeishuReplyDispatcherMock: vi.fn(),
   dispatchReplyFromConfigMock: vi.fn(),
+  runFeishuAuthI18nMock: vi.fn(),
+  buildI18nMarkdownCardMock: vi.fn(),
+  sendCardFeishuMock: vi.fn(),
+  sendMessageFeishuMock: vi.fn(),
 }));
 
 vi.mock('../src/messaging/inbound/dispatch-context', () => ({
@@ -71,9 +79,9 @@ vi.mock('../src/core/targets', () => ({
 }));
 
 vi.mock('../src/messaging/outbound/send', () => ({
-  buildI18nMarkdownCard: vi.fn(),
-  sendCardFeishu: vi.fn(),
-  sendMessageFeishu: vi.fn(),
+  buildI18nMarkdownCard: buildI18nMarkdownCardMock,
+  sendCardFeishu: sendCardFeishuMock,
+  sendMessageFeishu: sendMessageFeishuMock,
 }));
 
 vi.mock('../src/commands/doctor', () => ({
@@ -81,7 +89,7 @@ vi.mock('../src/commands/doctor', () => ({
 }));
 
 vi.mock('../src/commands/auth', () => ({
-  runFeishuAuthI18n: vi.fn(),
+  runFeishuAuthI18n: runFeishuAuthI18nMock,
 }));
 
 vi.mock('../src/commands/index', () => ({
@@ -190,6 +198,10 @@ beforeEach(() => {
     queuedFinal: false,
     counts: { final: 0 },
   });
+  runFeishuAuthI18nMock.mockResolvedValue({ zh_cn: 'auth zh', en_us: 'auth en' });
+  buildI18nMarkdownCardMock.mockReturnValue({ card: 'i18n' });
+  sendCardFeishuMock.mockResolvedValue(undefined);
+  sendMessageFeishuMock.mockResolvedValue(undefined);
 });
 
 describe('dispatchToAgent tool_use trace initialization', () => {
@@ -255,6 +267,29 @@ describe('dispatchToAgent tool_use trace initialization', () => {
         VcMeetingNo: '123456789',
       },
     });
+  });
+
+  it('blocks /feishu auth before i18n auth dispatch when command authorization fails', async () => {
+    const dc = createDispatchContext();
+    dc.ctx.content = '/feishu auth';
+    dc.commandAuthorized = false;
+    buildDispatchContextMock.mockReturnValueOnce(dc);
+
+    await dispatchToAgent({
+      ctx: dc.ctx as never,
+      mediaPayload: {},
+      account: dc.account as never,
+      accountScopedCfg: {} as never,
+      historyLimit: 0,
+    });
+
+    expect(runFeishuAuthI18nMock).not.toHaveBeenCalled();
+    expect(sendCardFeishuMock).not.toHaveBeenCalled();
+    expect(sendMessageFeishuMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'You are not authorized to run /feishu auth in this conversation.',
+      }),
+    );
   });
 
 });

@@ -44,8 +44,8 @@ export class OwnerAccessDeniedError extends Error {
  * - 获取 owner 失败时 → 拒绝（安全优先）
  * - owner 不匹配时 → 拒绝
  *
- * 适用于：`executeAuthorize`（OAuth 授权发起）、`commands/auth.ts`（批量授权）等
- * 赋予实质性权限的入口。
+ * 适用于确实需要限制为应用 owner 的管理入口。
+ * 用户 OAuth 与 UAT 工具调用不应使用此检查，因为 token 按 sender open_id 隔离保存。
  */
 export async function assertOwnerAccessStrict(
   account: ConfiguredLarkAccount,

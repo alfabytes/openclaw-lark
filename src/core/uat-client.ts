@@ -181,7 +181,7 @@ async function refreshWithLock(opts: UATCallOptions, stored: StoredUAToken): Pro
  * **The returned token must never be exposed to the AI layer.**
  */
 export async function getValidAccessToken(opts: UATCallOptions): Promise<string> {
-  // Owner 检查已迁移到 owner-policy.ts（由 tool-client.ts 的 invokeAsUser 调用）
+  // Owner-only checks are intentionally not part of UAT refresh; user tokens are keyed by sender open_id.
   const stored = await getStoredToken(opts.appId, opts.userOpenId);
   if (!stored) {
     throw new NeedAuthorizationError(opts.userOpenId);

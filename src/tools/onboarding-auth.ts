@@ -4,8 +4,8 @@
  *
  * Onboarding 预授权模块。
  *
- * 配对后自动发起 OAuth Device Flow，引导应用 owner 完成用户授权。
- * 仅当配对用户 === 应用 owner 时触发。
+ * 配对后自动发起 OAuth Device Flow，引导用户完成授权。
+ * 默认仅当配对用户 === 应用 owner 时触发；显式 /feishu auth 可为当前用户触发。
  *
  * 飞书限制：单次 OAuth 最多 50 个 scope。
  * 超过 50 个时自动分批处理，每批授权完成后自动发起下一批（链式触发）。
@@ -36,7 +36,7 @@ const MAX_SCOPES_PER_BATCH = 100;
  * 配对后触发 onboarding OAuth 授权。
  *
  * 流程：
- *   1. 检查 userOpenId === 应用 owner，不匹配则静默跳过
+ *   1. 默认检查 userOpenId === 应用 owner，不匹配则静默跳过
  *   2. 读取 onboarding-scopes.json 中的 user scope 列表
  *   3. 分批处理（每批最多 50 个），第一批直接发起 OAuth Device Flow
  *   4. 每批授权完成后通过 onAuthComplete 回调自动发起下一批
@@ -45,8 +45,9 @@ export async function triggerOnboarding(params: {
   cfg: ClawdbotConfig;
   userOpenId: string;
   accountId: string;
+  requireOwner?: boolean;
 }): Promise<void> {
-  const { cfg, userOpenId, accountId } = params;
+  const { cfg, userOpenId, accountId, requireOwner = true } = params;
 
   const acct = getLarkAccount(cfg, accountId);
   if (!acct.configured) {
@@ -57,18 +58,21 @@ export async function triggerOnboarding(params: {
   const sdk = LarkClient.fromAccount(acct).sdk;
   const { appId } = acct;
 
-  // 1. 检查 userOpenId === 应用 owner（统一走 getAppOwnerFallback）
-  const ownerOpenId = await getAppOwnerFallback(acct, sdk);
-  if (!ownerOpenId) {
-    log.info(`app ${appId} has no owner info, skipping`);
-    return;
+  // 1. 配对 onboarding 默认只为 app owner 自动触发；显式 /feishu auth 跳过此限制。
+  if (requireOwner) {
+    const ownerOpenId = await getAppOwnerFallback(acct, sdk);
+    if (!ownerOpenId) {
+      log.info(`app ${appId} has no owner info, skipping`);
+      return;
+    }
+    if (userOpenId !== ownerOpenId) {
+      log.info(`user ${userOpenId} is not app owner (${ownerOpenId}), skipping`);
+      return;
+    }
+    log.info(`user ${userOpenId} is app owner, starting OAuth`);
+  } else {
+    log.info(`starting OAuth for user ${userOpenId}`);
   }
-  if (userOpenId !== ownerOpenId) {
-    log.info(`user ${userOpenId} is not app owner (${ownerOpenId}), skipping`);
-    return;
-  }
-
-  log.info(`user ${userOpenId} is app owner, starting OAuth`);
 
   // 3. 动态获取应用已开通的 user scope 列表
   let allUserScopes: string[];
