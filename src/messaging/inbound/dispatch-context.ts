@@ -113,6 +113,13 @@ export function buildDispatchContext(params: {
           id: isGroup ? ctx.chatId : ctx.senderId,
         },
   });
+  const effectiveRoute =
+    !isComment && !isGroup && ctx.chatId
+      ? {
+          ...route,
+          sessionKey: `${route.sessionKey}:chat:${ctx.chatId}`,
+        }
+      : route;
 
   // ---- System event ----
   const sender = ctx.senderName ? `${ctx.senderName} (${ctx.senderId})` : ctx.senderId;
@@ -130,7 +137,7 @@ export function buildDispatchContext(params: {
   const tagStr = tags.length > 0 ? ` [${tags.join(', ')}]` : '';
 
   core.system.enqueueSystemEvent(`Feishu[${account.accountId}] ${location} | ${sender}${tagStr}`, {
-    sessionKey: route.sessionKey,
+    sessionKey: effectiveRoute.sessionKey,
     contextKey: `feishu:message:${ctx.chatId}:${ctx.messageId}`,
   });
 
@@ -148,7 +155,7 @@ export function buildDispatchContext(params: {
     feishuTo,
     envelopeFrom,
     envelopeOptions,
-    route,
+    route: effectiveRoute,
     threadSessionKey: undefined,
     commandAuthorized: params.commandAuthorized,
   };
